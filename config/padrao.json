@@ -1,0 +1,49 @@
+{
+  "simulador": {
+    "n_ciclos_por_episodio": 8,
+    "ciclos": {"curto": [15, 5], "padrao": [25, 5], "foco": [50, 10]},
+    "urgencia_probs": [0.4, 0.4, 0.2],
+    "fadiga_inicial": [0.0, 0.3],
+    "fadiga_por_min": 0.006,
+    "crescimento_tempo_continuo": 1.0,
+    "multiplicador_urgencia": [1.0, 1.1, 1.25],
+    "recuperacao_por_min_pausa": 0.035,
+    "ruido_autorrelato": 0.35,
+    "limiar_cansaco_alto": 4,
+    "eficiencia_min": 0.0,
+    "expoente_eficiencia": 1.5
+  },
+  "recompensa": {
+    "variante": "basica",
+    "pontos_por_min": 1.0,
+    "penalidade": 10.0,
+    "ponderar_por_eficiencia": false,
+    "penalidade_por_urgencia": [1.0, 1.0, 1.0]
+  },
+  "variantes_recompensa": {
+    "basica":   {"ponderar_por_eficiencia": false, "penalidade_por_urgencia": [1.0, 1.0, 1.0]},
+    "eficaz":   {"ponderar_por_eficiencia": true,  "penalidade_por_urgencia": [1.0, 1.0, 1.0]},
+    "urgencia": {"ponderar_por_eficiencia": true,  "penalidade_por_urgencia": [1.5, 1.0, 0.5]}
+  },
+  "agente": {
+    "alpha": 0.1,
+    "gamma": 0.95,
+    "q_inicial": 0.0,
+    "eps_inicio": 1.0,
+    "eps_fim": 0.05,
+    "eps_decai_frac": 0.7
+  },
+  "regra": {"curto_a_partir_de": 4, "foco_ate": 2},
+  "treino": {
+    "n_episodios": 20000,
+    "n_episodios_avaliacao": 2000,
+    "blocos_progresso": 20
+  },
+  "grade": {
+    "algoritmos": ["qlearning", "bandit"],
+    "variantes": ["basica", "eficaz", "urgencia"],
+    "penalidades": [5, 10, 20],
+    "sementes": [11, 22, 33, 44, 55],
+    "baselines": ["fixo_curto", "fixo_padrao", "fixo_foco", "regra", "aleatorio"]
+  }
+}
