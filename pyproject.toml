@@ -1,0 +1,19 @@
+[project]
+name = "pomodoro-rl"
+version = "0.1.0"
+description = "Pomodoro adaptativo com aprendizado por reforco"
+requires-python = ">=3.10,<3.13"
+dynamic = ["dependencies"]
+[tool.poetry]
+package-mode = false
+
+[tool.poetry.dependencies]
+python = ">=3.10,<3.13"
+numpy = ">=1.26"
+pandas = ">=2.0"
+matplotlib = ">=3.8"
+tqdm = ">=4.66"
+jupyterlab = ">=4,<5"
+ipykernel = ">=6,<7"
+ipywidgets = ">=8,<9"
+

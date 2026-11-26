@@ -1,0 +1,787 @@
+\documentclass[aspectratio=169]{beamer}
+
+\usepackage[T1]{fontenc}
+\usepackage[brazil]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{amsmath}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta, positioning}
+
+\IfFileExists{beamerthemeInf.sty}{
+  \usetheme{Inf}
+}{
+  \usetheme{Madrid}
+}
+
+\providecommand{\InfTitlePage}{
+  \begin{frame}[plain]
+    \titlepage
+  \end{frame}
+}
+
+\title{TSDAE ainda é útil para recuperação semântica em português?}
+\subtitle{Uma análise experimental com BERT e embeddings multilíngues modernos}
+
+
+
+\institute{
+Instituto de Informática --- UFRGS
+}
+
+\newcommand{\model}[1]{\texttt{#1}}
+
+\begin{document}
+
+\InfTitlePage
+
+\begin{frame}
+  \frametitle{Agenda}
+  \tableofcontents
+\end{frame}
+
+% ==========================================================
+\section{Motivação}
+
+\begin{frame}
+\frametitle{Contexto}
+
+\begin{block}{Recuperação semântica}
+Em tarefas de recuperação de informação, o objetivo é ordenar documentos de acordo com sua relevância para uma consulta.
+
+\vspace{0.15cm}
+
+Modelos densos de embeddings permitem recuperar documentos semanticamente relacionados, mesmo quando não há correspondência lexical direta entre consulta e documento.
+\end{block}
+
+\vspace{0.25cm}
+
+\begin{block}{Mudança recente}
+Modelos multilíngues modernos, como E5 e BGE-M3, já apresentam forte desempenho em diferentes línguas e domínios.
+
+\vspace{0.15cm}
+
+Isso levanta uma dúvida: a adaptação não supervisionada com TSDAE ainda traz ganho real quando aplicada a modelos BERT?
+\end{block}
+
+\end{frame}
+
+\begin{frame}
+\frametitle{TSDAE: Relembrando}
+
+\begin{block}{Ideia central}
+O \textit{Transformer-based Sequential Denoising Auto-Encoder} treina um modelo para reconstruir uma sentença original a partir de uma versão corrompida.
+
+\vspace{0.2cm}
+
+Durante esse processo, o encoder é incentivado a produzir representações que preservam informação semântica relevante.
+\end{block}
+
+\vspace{0.25cm}
+
+\[
+x
+\;\xrightarrow{\text{ruído}}\;
+\tilde{x}
+\;\xrightarrow{\text{encoder}}\;
+z
+\;\xrightarrow{\text{decoder}}\;
+\hat{x}
+\]
+
+\vspace{0.15cm}
+
+\begin{alertblock}{Uso no experimento}
+Após a adaptação, o encoder BERT é usado para gerar embeddings de consultas e documentos.
+\end{alertblock}
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Pergunta de Pesquisa}
+
+\begin{alertblock}{Questão central}
+A adaptação não supervisionada com TSDAE em modelos BERT ainda gera embeddings úteis para recuperação semântica em português quando comparada a embeddings multilíngues modernos já prontos?
+\end{alertblock}
+
+\vspace{0.3cm}
+
+\textbf{Hipóteses investigadas}
+
+\begin{itemize}
+  \item BERT + TSDAE pode superar o BERT original;
+  \item O ganho depende da estratégia de ruído usada no TSDAE;
+  \item Modelos modernos como E5 e BGE-M3 podem superar o BERT adaptado isoladamente;
+  \item Mesmo assim, BERT + TSDAE pode recuperar documentos relevantes diferentes;
+  \item Essa complementaridade pode ser útil em fusões de rankings.
+\end{itemize}
+
+\end{frame}
+
+% ==========================================================
+\section{Desenho Experimental}
+
+\begin{frame}
+\frametitle{Visão Geral do Experimento}
+
+\begin{center}
+\begin{tikzpicture}[
+  node distance=0.45cm,
+  box/.style={
+    draw,
+    rounded corners,
+    align=center,
+    minimum width=4.8cm,
+    minimum height=0.65cm
+  },
+  arrow/.style={-{Latex[length=2mm]}, thick}
+]
+
+\node[box] (data) {Dataset Quati\\ corpus, queries e qrels};
+\node[box, below=of data] (systems) {Sistemas avaliados\\ BM25, embeddings prontos, BERT e BERT + TSDAE};
+\node[box, below=of systems] (retrieval) {Geração de rankings\\ busca lexical e busca vetorial};
+\node[box, below=of retrieval] (eval) {Avaliação quantitativa\\ MRR, Recall@k, Hit@k e nDCG@k};
+\node[box, below=of eval] (analysis) {Análises adicionais\\ complementaridade, fusão e bootstrap};
+
+\draw[arrow] (data) -- (systems);
+\draw[arrow] (systems) -- (retrieval);
+\draw[arrow] (retrieval) -- (eval);
+\draw[arrow] (eval) -- (analysis);
+
+\end{tikzpicture}
+\end{center}
+
+\vspace{0.15cm}
+
+\begin{block}{Foco metodológico}
+Todos os métodos são comparados sobre o mesmo conjunto de consultas, documentos e julgamentos de relevância.
+\end{block}
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Unidade de Comparação}
+
+\textbf{Cada sistema gera um ranking para cada consulta.}
+
+\vspace{0.3cm}
+
+\begin{columns}
+
+\column{0.48\textwidth}
+\begin{block}{Entrada}
+\begin{itemize}
+  \item Consulta em português;
+  \item Corpus de documentos/passagens;
+  \item Modelo ou método de recuperação.
+\end{itemize}
+\end{block}
+
+\column{0.48\textwidth}
+\begin{block}{Saída}
+\begin{itemize}
+  \item Lista ordenada de documentos;
+  \item Top-$k$ documentos recuperados;
+  \item Scores ou posições no ranking.
+\end{itemize}
+\end{block}
+
+\end{columns}
+
+\vspace{0.3cm}
+
+\begin{alertblock}{Comparação}
+A avaliação é feita por consulta e depois agregada para obter métricas globais.
+\end{alertblock}
+
+\end{frame}
+
+% ==========================================================
+\section{Dataset}
+
+\begin{frame}
+\frametitle{Dataset Utilizado: Quati}
+
+\begin{block}{Motivação para a escolha}
+O Quati é utilizado por ser um dataset de recuperação de informação em português brasileiro, com consultas, corpus e julgamentos de relevância.
+\end{block}
+
+\vspace{0.25cm}
+
+\begin{table}
+\centering
+\small
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Componente} & \textbf{Uso no experimento} \\
+\midrule
+Queries & Consultas usadas para gerar os rankings \\
+Corpus & Documentos/passagens candidatos à recuperação \\
+Qrels & Julgamentos de relevância usados apenas na avaliação \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\vspace{0.25cm}
+
+\begin{alertblock}{Ponto importante}
+Os qrels não são usados para adaptar o BERT com TSDAE; eles entram somente na etapa de avaliação.
+\end{alertblock}
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Preparação dos Dados}
+
+\textbf{Organização do experimento}
+
+\begin{itemize}
+  \item Padronização dos identificadores de queries e documentos;
+  \item Separação entre corpus, consultas e qrels;
+  \item Uso do corpus textual para indexação e adaptação não supervisionada;
+  \item Uso das queries para gerar rankings;
+  \item Uso dos qrels para calcular métricas de recuperação.
+\end{itemize}
+
+\vspace{0.3cm}
+
+\begin{block}{Controle contra vazamento de informação}
+A adaptação TSDAE utiliza textos sem rótulos de relevância. As informações de relevância são reservadas para a avaliação final.
+\end{block}
+
+\end{frame}
+
+% ==========================================================
+\section{Sistemas Avaliados}
+
+\begin{frame}
+\frametitle{Grupos de Sistemas Avaliados}
+
+\begin{table}
+\centering
+\small
+\begin{tabular}{@{}p{0.28\textwidth}p{0.62\textwidth}@{}}
+\toprule
+\textbf{Grupo} & \textbf{Papel no experimento} \\
+\midrule
+BM25 & Baseline lexical baseado em correspondência de termos \\
+Embeddings multilíngues prontos & Baselines densos fortes, sem adaptação adicional \\
+BERT original & Modelo base usado como referência antes da adaptação \\
+BERT + TSDAE & Modelo BERT adaptado de forma não supervisionada com diferentes ruídos \\
+Fusão de rankings & Combinação de rankings para avaliar complementaridade \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\vspace{0.25cm}
+
+\begin{alertblock}{Ponto central}
+O TSDAE não é aplicado a todos os baselines densos. Ele é aplicado ao modelo BERT, e os modelos modernos servem como referência competitiva.
+\end{alertblock}
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Baselines Densos Multilíngues}
+
+\textbf{Modelos usados sem adaptação adicional}
+
+\vspace{0.2cm}
+
+\begin{itemize}
+  \item multilingual-E5;
+  \item BGE-M3;
+  \item LaBSE;
+  \item MiniLM Multilingual;
+  \item DistilUSE.
+\end{itemize}
+
+\vspace{0.35cm}
+
+\begin{block}{Função desses modelos}
+Eles representam o estado atual de embeddings multilíngues prontos para uso, servindo como referência para avaliar se o BERT adaptado com TSDAE ainda é competitivo.
+\end{block}
+
+\vspace{0.15cm}
+
+
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Modelo Adaptado com TSDAE}
+
+\textbf{Modelo base: BERT}
+
+\vspace{0.25cm}
+
+\begin{itemize}
+  \item O BERT é usado como modelo base para a adaptação não supervisionada;
+  \item Primeiro, avalia-se o BERT original, sem TSDAE;
+  \item Em seguida, avaliam-se versões do BERT adaptadas com TSDAE;
+  \item Cada versão adaptada usa uma estratégia diferente de corrupção textual.
+\end{itemize}
+
+\vspace{0.3cm}
+
+\begin{block}{Comparação principal}
+BERT original vs. BERT + TSDAE.
+
+\vspace{0.15cm}
+
+Depois, compara-se o comportamento dessas versões com modelos modernos como E5 e BGE-M3.
+\end{block}
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Baselines Lexicais}
+
+\textbf{BM25}
+
+\vspace{0.2cm}
+
+\begin{itemize}
+  \item Recuperação baseada em termos;
+  \item Forte baseline clássico para busca textual;
+  \item Não depende de embeddings;
+  \item Serve como comparação contra os métodos densos.
+\end{itemize}
+
+\vspace{0.3cm}
+
+\begin{block}{Por que incluir BM25?}
+Um modelo denso só é realmente útil se superar, complementar ou combinar bem com um baseline lexical forte.
+\end{block}
+
+\end{frame}
+
+% ==========================================================
+\section{Adaptação com TSDAE}
+
+\begin{frame}
+\frametitle{TSDAE no Experimento}
+
+\textbf{Etapa de adaptação não supervisionada}
+
+\vspace{0.25cm}
+
+\begin{enumerate}
+  \item Seleciona-se o modelo BERT como base;
+  \item Sentenças ou passagens do corpus são corrompidas;
+  \item O modelo é treinado para reconstruir o texto original;
+  \item O encoder BERT adaptado é usado para gerar embeddings;
+  \item Os embeddings são avaliados em recuperação semântica.
+\end{enumerate}
+
+\vspace{0.25cm}
+
+\begin{alertblock}{Ideia experimental}
+A adaptação é tratada como uma intervenção: comparamos o BERT antes e depois do TSDAE.
+\end{alertblock}
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Configurações de TSDAE}
+
+O TSDAE é aplicado ao modelo BERT usando diferentes estratégias de ruído.
+
+\vspace{0.25cm}
+
+\begin{table}
+\centering
+\small
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Configuração} & \textbf{Descrição} \\
+\midrule
+\texttt{delete30} & Remove 30\% dos tokens \\
+\texttt{delete60} & Remove 60\% dos tokens \\
+\texttt{mask30} & Mascara 30\% dos tokens \\
+\texttt{span\_delete30} & Remove spans contínuos do texto \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\vspace{0.3cm}
+
+\begin{alertblock}{Pergunta metodológica}
+Qual tipo de ruído produz embeddings BERT mais úteis para recuperação semântica em português?
+\end{alertblock}
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Por que Avaliar Diferentes Ruídos?}
+
+\begin{columns}
+
+\column{0.48\textwidth}
+\begin{block}{Ruídos mais leves}
+\begin{itemize}
+  \item Preservam mais informação lexical;
+  \item Podem facilitar a reconstrução;
+  \item Podem gerar mudanças menores no modelo.
+\end{itemize}
+\end{block}
+
+\column{0.48\textwidth}
+\begin{block}{Ruídos mais fortes}
+\begin{itemize}
+  \item Forçam maior abstração semântica;
+  \item Podem melhorar robustez;
+  \item Também podem degradar o sinal original.
+\end{itemize}
+\end{block}
+
+\end{columns}
+
+\vspace{0.3cm}
+
+\begin{alertblock}{Questão metodológica}
+A avaliação não considera apenas se TSDAE melhora o BERT, mas qual configuração altera o ranking de forma útil.
+\end{alertblock}
+
+\end{frame}
+
+% ==========================================================
+\section{Pipeline de Recuperação}
+
+\begin{frame}
+\frametitle{Pipeline de Recuperação Densa}
+
+\begin{columns}
+
+\column{0.48\textwidth}
+\begin{block}{Indexação}
+\begin{itemize}
+  \item O corpus é codificado pelo modelo;
+  \item Cada documento recebe um embedding;
+  \item Os vetores são armazenados em um índice FAISS.
+\end{itemize}
+\end{block}
+
+\column{0.48\textwidth}
+\begin{block}{Consulta}
+\begin{itemize}
+  \item A query é codificada pelo mesmo modelo;
+  \item Busca-se os vetores mais próximos;
+  \item O sistema retorna os top-$k$ documentos.
+\end{itemize}
+\end{block}
+
+\end{columns}
+
+\vspace{0.3cm}
+
+\begin{alertblock}{Controle experimental}
+O mesmo procedimento de recuperação é usado para modelos densos prontos, BERT original e BERT adaptado.
+\end{alertblock}
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Rankings Gerados}
+
+Para cada consulta, cada sistema produz uma lista ordenada de documentos.
+
+\vspace{0.25cm}
+
+\begin{table}
+\centering
+\small
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{Sistema} & \textbf{Representação} & \textbf{Saída} \\
+\midrule
+BM25 & Termos e frequências & Ranking lexical \\
+Embeddings multilíngues prontos & Embeddings congelados & Ranking semântico \\
+BERT original & Embeddings BERT sem adaptação & Ranking semântico \\
+BERT + TSDAE & Embeddings BERT adaptados & Ranking semântico adaptado \\
+Fusão & Combinação de rankings & Ranking combinado \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\vspace{0.25cm}
+
+\begin{block}{Base da análise}
+As métricas e análises de complementaridade são calculadas a partir desses rankings.
+\end{block}
+
+\end{frame}
+
+% ==========================================================
+\section{Métricas de Avaliação}
+
+\begin{frame}
+\frametitle{Métricas Tradicionais}
+
+\begin{table}
+\centering
+\small
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Métrica} & \textbf{O que mede} \\
+\midrule
+MRR & Posição do primeiro documento relevante recuperado \\
+Recall@k & Fração dos documentos relevantes presentes no top-$k$ \\
+Hit@k & Se há ao menos um documento relevante no top-$k$ \\
+nDCG@k & Qualidade do ranking considerando posição e relevância \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\vspace{0.3cm}
+
+\begin{alertblock}{Interpretação}
+As métricas capturam aspectos diferentes: encontrar rápido o primeiro relevante, cobrir relevantes e ordenar bem o ranking.
+\end{alertblock}
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Avaliação por Consulta}
+
+Além das médias globais, o experimento analisa o comportamento por query.
+
+\vspace{0.25cm}
+
+\begin{itemize}
+  \item Quais consultas melhoram após TSDAE;
+  \item Quais consultas pioram após TSDAE;
+  \item Em quais casos modelos modernos já são suficientes;
+  \item Em quais casos BM25 recupera documentos que os modelos densos não recuperam;
+  \item Em quais casos BERT + TSDAE recupera documentos relevantes exclusivos.
+\end{itemize}
+
+\vspace{0.3cm}
+
+\begin{block}{Motivação}
+Duas abordagens podem ter médias parecidas, mas errar e acertar em consultas diferentes.
+\end{block}
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Significância Estatística}
+
+\textbf{Comparações pareadas entre sistemas}
+
+\vspace{0.25cm}
+
+\begin{itemize}
+  \item A unidade de reamostragem é a query;
+  \item Calcula-se a diferença de desempenho entre dois sistemas;
+  \item Bootstrap é usado para estimar intervalos de confiança;
+  \item O foco é avaliar a incerteza das diferenças observadas.
+\end{itemize}
+
+\vspace{0.3cm}
+
+\begin{alertblock}{Exemplo de comparação}
+BERT original vs. BERT + TSDAE.
+
+BM25 vs. modelo denso.
+
+Modelo multilíngue moderno vs. BERT + TSDAE.
+
+Melhor modelo individual vs. fusão de rankings.
+\end{alertblock}
+
+\end{frame}
+
+% ==========================================================
+\section{Complementaridade e Fusão}
+
+\begin{frame}
+\frametitle{Complementaridade entre Rankings}
+
+\begin{block}{Ideia}
+Um modelo pode ser útil mesmo sem ter a melhor métrica média, desde que recupere documentos relevantes diferentes dos demais modelos.
+\end{block}
+
+\vspace{0.25cm}
+
+\textbf{Análises possíveis}
+
+\begin{itemize}
+  \item Sobreposição entre top-$k$ documentos;
+  \item Documentos relevantes exclusivos por modelo;
+  \item Consultas em que um modelo acerta e outro erra;
+  \item Diferença entre rankings gerados por BM25, embeddings prontos, BERT original e BERT + TSDAE.
+\end{itemize}
+
+\vspace{0.25cm}
+
+\begin{alertblock}{Pergunta central}
+BERT + TSDAE gera rankings redundantes ou complementares aos modelos modernos?
+\end{alertblock}
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Fusão de Rankings}
+
+Duas estratégias de ensemble são consideradas.
+
+\vspace{0.25cm}
+
+\begin{columns}
+
+\column{0.48\textwidth}
+\begin{block}{Score Fusion}
+\begin{itemize}
+  \item Normaliza scores;
+  \item Combina pontuações;
+  \item Gera um ranking médio.
+\end{itemize}
+\end{block}
+
+\column{0.48\textwidth}
+\begin{block}{Reciprocal Rank Fusion}
+\begin{itemize}
+  \item Usa posições no ranking;
+  \item Não exige scores comparáveis;
+  \item Favorece documentos bem ranqueados por múltiplos sistemas.
+\end{itemize}
+\end{block}
+
+\end{columns}
+
+\vspace{0.25cm}
+
+\[
+\text{RRF}(d) = \sum_{m \in M} \frac{1}{c + \text{rank}_m(d)}
+\]
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Por que Ensembles?}
+
+\begin{block}{Motivação}
+Se BM25, modelos multilíngues modernos e BERT adaptado com TSDAE recuperam documentos relevantes diferentes, a combinação pode superar os modelos isolados.
+\end{block}
+
+\vspace{0.25cm}
+
+\textbf{O experimento avalia se:}
+
+\begin{itemize}
+  \item BERT + TSDAE contribui para ensembles;
+  \item A fusão melhora métricas tradicionais;
+  \item A melhora vem de complementaridade real ou apenas de reforço dos mesmos documentos;
+  \item O BERT adaptado pode agregar valor quando combinado com modelos fortes.
+\end{itemize}
+
+\end{frame}
+
+% ==========================================================
+\section{Cuidados Experimentais}
+
+\begin{frame}
+\frametitle{Controles Metodológicos}
+
+\begin{itemize}
+  \item Mesmas queries para todos os sistemas;
+  \item Mesmo corpus de documentos candidatos;
+  \item Mesmos qrels para avaliação;
+  \item Comparação direta entre BERT original e BERT adaptado;
+  \item Avaliação dos rankings no mesmo top-$k$;
+  \item Separação entre adaptação não supervisionada e avaliação supervisionada.
+\end{itemize}
+
+\vspace{0.3cm}
+
+\begin{alertblock}{Objetivo}
+Garantir que diferenças observadas sejam atribuídas ao método de recuperação ou à adaptação, não a mudanças no protocolo experimental.
+\end{alertblock}
+
+\end{frame}
+
+\begin{frame}
+\frametitle{O que a Metodologia Permite Responder}
+
+Ao final da avaliação, o desenho experimental permite investigar:
+
+\vspace{0.2cm}
+
+\begin{enumerate}
+  \item TSDAE melhora o BERT em recuperação semântica em português?
+  \item O ganho depende do tipo de ruído usado?
+  \item Modelos modernos como E5 e BGE-M3 reduzem a necessidade de TSDAE?
+  \item BERT + TSDAE ainda recupera documentos relevantes complementares?
+  \item BERT + TSDAE ainda é útil em ensembles ou cenários de complementaridade?
+\end{enumerate}
+
+\vspace{0.3cm}
+
+\begin{block}{Foco do estudo}
+Não apenas medir se TSDAE ganha, mas entender quando ele ainda vale a pena.
+\end{block}
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Resumo da Metodologia}
+
+\begin{center}
+\begin{tikzpicture}[
+  node distance=0.35cm,
+  box/.style={
+    draw,
+    rounded corners,
+    align=center,
+    minimum width=5.3cm,
+    minimum height=0.58cm
+  },
+  arrow/.style={-{Latex[length=2mm]}, thick}
+]
+
+\node[box] (q) {Quati: queries, corpus e qrels};
+\node[box, below=of q] (b) {BM25, embeddings multilíngues prontos e BERT original};
+\node[box, below=of b] (t) {Adaptação do BERT com TSDAE e diferentes ruídos};
+\node[box, below=of t] (r) {Geração de rankings via BM25 e FAISS};
+\node[box, below=of r] (m) {MRR, Recall@k, Hit@k e nDCG@k};
+\node[box, below=of m] (c) {Complementaridade, fusão e bootstrap};
+
+\draw[arrow] (q) -- (b);
+\draw[arrow] (b) -- (t);
+\draw[arrow] (t) -- (r);
+\draw[arrow] (r) -- (m);
+\draw[arrow] (m) -- (c);
+
+\end{tikzpicture}
+\end{center}
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Próxima Parte da Apresentação}
+
+\begin{block}
+
+\begin{itemize}
+  \item desempenho dos baselines;
+  \item impacto da adaptação TSDAE no BERT;
+  \item comparação entre ruídos;
+  \item análise por query;
+  \item complementaridade entre rankings;
+  \item desempenho dos ensembles;
+  \item significância estatística.
+\end{itemize}
+\end{block}
+
+\vspace{0.25cm}
+
+\begin{alertblock}{Obrigado!}
+
+\end{alertblock}
+
+\end{frame}
+
+\end{document}

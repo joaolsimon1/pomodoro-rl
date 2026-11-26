@@ -1,4 +1,4 @@
-﻿"""Análise de sensibilidade da dinâmica de fadiga."""
+"""Análise de sensibilidade da dinâmica de fadiga."""
 import argparse
 import csv
 import json
@@ -52,7 +52,7 @@ def resultados(pasta):
 
 def main():
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument("--cpus", type=int, default=32)
+    p.add_argument("--cpus", type=int, default=28)
     p.add_argument("--rapido", action="store_true")
     p.add_argument("--dry-run", action="store_true")
     a = p.parse_args()

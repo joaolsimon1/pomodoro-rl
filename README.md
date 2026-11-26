@@ -116,7 +116,7 @@ Em quais dinâmicas de fadiga o Q-learning supera um bandit contextual ou uma re
 
 ```bash
 python src/sensibilidade.py --dry-run
-python src/sensibilidade.py --cpus 32
+python src/sensibilidade.py --cpus 28
 ```
 
 São cinco cenários: referência e variações de ±25% em fadiga por minuto ou recuperação por minuto de pausa, um fator por vez. As amplitudes são perturbações hipotéticas locais. A recompensa é sempre `eficaz`, com penalidade 10. Cada cenário usa as mesmas cinco sementes e sete políticas. Q-learning e bandit treinam de novo em cada cenário. A avaliação usa episódios independentes do treino. Os 175 trabalhos são distribuídos entre processos em CPU; as tabelas de 15 × 3 dispensam GPU.
